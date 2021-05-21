@@ -18,54 +18,61 @@
 using namespace yarp::os;
 using namespace yarp::dev;
 
-class BcbBattery : public PeriodicThread, public yarp::dev::IBattery, public DeviceDriver
+class batteryReaderThread : public PeriodicThread
+{
+    public:
+    //configuration options
+    bool               verboseEnable = false;
+    bool               screenEnable = true;
+    bool               silenceSyncWarnings = false;
+
+    //the buffer
+    bool               closeRequested = false;
+    double             timeStamp;
+    char               serial_buff[10];
+    int                output[10];
+
+    ISerialDevice*     pSerial = nullptr;
+    double             battery_charge = 0;
+    double             battery_voltage = 0;
+    double             battery_current = 0;
+    std::string        battery_info = "icub battery system v1.0";
+    unsigned char      backpack_status = 0;
+
+    batteryReaderThread (ISerialDevice *_pSerial, double period) :
+    PeriodicThread((double)period),
+    pSerial(_pSerial)
+    {}
+
+    void startTransmission();
+    void stopTransmission();
+    virtual bool threadInit() override;
+    virtual void threadRelease() override;
+    virtual void run() override;
+};
+
+class BcbBattery: public yarp::dev::IBattery, public DeviceDriver
 {
 protected:
-    std::mutex mtx;
-
-    unsigned short     batteryId;
-    short              status;
-    double             timeStamp;
-    yarp::sig::Vector  data;
-    double             battery_charge;
-    double             battery_voltage;
-    double             battery_current;
-    double             battery_temperature;
-    std::string        battery_info;
-    unsigned char      backpack_status;
-
-    bool verboseEnable;
-    bool screenEnable;
-    bool debugEnable;
+    batteryReaderThread* batteryReader =nullptr;
 
     ResourceFinder      rf;
     PolyDriver          driver;
-    ISerialDevice       *pSerial;
-    char                serial_buff[255];
-    std::string         remoteName;
-    std::string         localName;
+    ISerialDevice       *pSerial = nullptr;
 
 public:
-    BcbBattery(int period = 20) : PeriodicThread((double)period/1000.0)
-    {}
-
-    ~BcbBattery()
-    {
-    }
+    BcbBattery()  {}
+    ~BcbBattery()  {}
 
     virtual bool open(yarp::os::Searchable& config);
     virtual bool close();
 
-    virtual bool getBatteryVoltage     (double &voltage);
-    virtual bool getBatteryCurrent     (double &current);
-    virtual bool getBatteryCharge      (double &charge);
-    virtual bool getBatteryStatus      (Battery_status &status);
-    virtual bool getBatteryInfo        (std::string &info);
-    virtual bool getBatteryTemperature (double &temperature);
-
-    virtual bool threadInit();
-    virtual void threadRelease();
-    virtual void run();
+    virtual bool getBatteryVoltage     (double &voltage) override;
+    virtual bool getBatteryCurrent     (double &current) override;
+    virtual bool getBatteryCharge      (double &charge) override;
+    virtual bool getBatteryStatus      (Battery_status &status) override;
+    virtual bool getBatteryInfo        (std::string &info) override;
+    virtual bool getBatteryTemperature (double &temperature) override;
 };
 
 
